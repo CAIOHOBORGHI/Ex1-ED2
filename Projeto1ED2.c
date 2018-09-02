@@ -13,7 +13,7 @@
 
 void inserir();
 //void remover();
-//void compactar();
+void compactar();
 void carregarArquivos();
 FILE *criaArquivo();
 void atualizaHeader();
@@ -87,7 +87,7 @@ int main(void){
 	        case 2: 
 				remover(fileA); 
 				break;
-	        //case 3: compactar(); break;
+	        case 3: compactar(fileA); break;
 	        case 4: 
 				carregarArquivos();	
 				break;
@@ -467,4 +467,25 @@ void carregarArquivos(){
     fread(lista.registros, tamanholistaRegistros, 1,fileB);
     printf("\nRegistros carregados...");
     fclose(fileB);
+}
+
+void compactar(FILE *fp){
+		
+	livroD *livro;  
+	FILE *temp;
+	char *old_filename ="dados.bin" , *new_filename = "temporario.bin";
+	
+	
+	temp = criaArquivo("temporario.bin");
+	
+    livro = getLivroD(fp);
+
+    
+    
+	fclose(fp);
+	fclose(temp);    
+	remove(old_filename);
+	rename(new_filename, old_filename);
+    
+    system("pause");
 }
