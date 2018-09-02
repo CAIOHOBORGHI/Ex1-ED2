@@ -31,6 +31,7 @@ typedef struct{
 
 typedef struct{
 	char *ISBN, *tituloLivro, *autorLivro, *anoLivro;
+	int offset;
 }livroD;
 
 typedef struct{
@@ -269,6 +270,7 @@ livroD* getLivroD(FILE *fp){
 	}
 	livroD *livro = (livroD *)malloc(sizeof(livroD));
 	int tam = getRegTam(fp);
+	livro->offset = tam;
 	char cToStr[2];
 	cToStr[0] = '\0';
 	cToStr[1] = '\0';
@@ -325,9 +327,10 @@ void achaRegistro(char ISBN[14], FILE *fp){
 	
 	while(1){
 		livroD *aux = getLivroD(fp);
-		printf("\nNome do Autor : %s", aux->autorLivro);
-		if(ftell(fp) == size)
-			break;
+		if(strcmp(ISBN, aux->ISBN) == 0)
+		{
+			printf("ACHOU, TAM: %d", aux->offset);
+		}
 	};
 	_getch();
 }
