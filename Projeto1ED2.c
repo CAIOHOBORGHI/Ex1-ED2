@@ -57,7 +57,7 @@ int main(void){
     if((fileA = fopen("dados.bin", "rb+")) == NULL)
         fileA = criaArquivo("dados.bin");
 
-	achaRegistro("", fileA);
+	achaRegistro("1111111111111", fileA);
     //MENU DE ESCOLHAS
     do{
         system("cls");
@@ -274,8 +274,8 @@ livroD* getLivroD(FILE *fp){
 	cToStr[1] = '\0';
 	char *wordBuffer = malloc(sizeof(tam) + 1);
 	int prop = 0;
-	
-	for(int i = 0; i < tam && cToStr[0] != '$'; i++){
+	int i = 0;
+	for(; i < tam && cToStr[0] != '$'; i++){
 		cToStr[0] = fgetc(fp);
 		if(cToStr[0] == '#' || i == tam-1){
 			switch(prop){
@@ -303,6 +303,13 @@ livroD* getLivroD(FILE *fp){
 		else
 			strcat(wordBuffer, cToStr);
 	}
+	
+	//Ignora caracteres dentro do registro após sinal de exclusão
+	if(cToStr[0] == '$')
+		while(i <= tam){
+			fgetc(fp);
+			i++;
+		}		
 	return livro;
 }
 
@@ -317,13 +324,10 @@ void achaRegistro(char ISBN[14], FILE *fp){
 	rewind(fp);
 	
 	while(1){
+		livroD *aux = getLivroD(fp);
+		printf("\nNome do Autor : %s", aux->autorLivro);
 		if(ftell(fp) == size)
 			break;
-		livroD *aux = getLivroD(fp);
-		if(aux->ISBN == ISBN){
-			printf("Achei o arquivo");
-		}else
-			printf("\nISBN %s", aux->ISBN);
 	};
 	_getch();
 }
