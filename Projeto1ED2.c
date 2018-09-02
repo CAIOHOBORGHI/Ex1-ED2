@@ -18,19 +18,19 @@ void carregarArquivos();
 
 
 //struct contendo os dados de cada livro
-struct dados{
+typedef struct{
     char ISBN[14], tituloLivro[50], autorLivro[50], anoLivro[5];
-};
+}dados;
 
-struct dados *vet;
+dados *listaRegistros;
 
 //struct contendo os arquivos para serem removidos
 struct data{
     char ISBN[13];
 };
 
-char *retornaString(struct dados data);
-int header;
+char *retornaString(dados data);
+int header = 1;
 
 int main(void){
 
@@ -40,7 +40,7 @@ int main(void){
     int campo, opc, i;
 
     //Verifica se o arquivo já existe, caso contrario, cria-o.
-    if((fileA = fopen("dados.bin", "rb")) == NULL){
+    if((fileA = fopen("dados.bin", "ab")) == NULL){
         fileA = fopen("dados.bin", "wb");
         if(fileA == NULL)
             printf("Erro ao abrir o arquivo");
@@ -56,7 +56,7 @@ int main(void){
         printf("3 - COMPACTAR\n");
         printf("4 - CARREGAR ARQUIVOS\n");
         printf("5 - DUMP DO ARQUIVO\n");
-        printf("6 - SAIR DO PROGRAMA\n");
+        printf("0 - SAIR DO PROGRAMA\n");
         scanf("%d", &opc);
 
         switch(opc){
@@ -67,7 +67,7 @@ int main(void){
 	        //case 3: compactar(); break;
 	        case 4: 
 				carregarArquivos();
-				char *teste = retornaString(vet[1]);
+				char *teste = retornaString(listaRegistros[0]);
 				printf("\n%s", teste);
 				_getch();				
 				break;
@@ -76,15 +76,25 @@ int main(void){
 	        //default: printf("Opcao invalida!"); system("pause");
         }
 
-    }while(opc != 6);
+    }while(opc != 0);
 
     fclose(fileA);
 }
 
 void inserir(FILE *fileA){
+	if(listaRegistros == NULL)
+		//Popula lista de Registros
+		printf("\nImportante carregar a lista antes né pco");
+	
+	char *stringInsercao = retornaString(listaRegistros[header]);
+	printf("Insere isso aqui no arquivo: %s", stringInsercao);
+	int r = fprintf(fileA, stringInsercao);
+	printf("R deu isso aqui -> %d", r);
+	
 	//TODO -> Verificar se existe arquivo .info 
 	
 	//char *stringInsercao = retornaString();
+	_getch();
 	
 }
 
@@ -99,17 +109,16 @@ void formataString(char cToStr[2], char atual, char *stringInsercao, int *j, int
 		strcat(stringInsercao, cToStr);
 }
 
-char *retornaString(struct dados data){
-	char *stringInsercao;
-	stringInsercao = malloc(5 + (sizeof(char) * sizeof(data)));
+char *retornaString(dados data){
+	char *stringInsercao = malloc(sizeof(char) * sizeof(data)); //Atribui tamanho máximo que a string pode ter
 	strcpy(stringInsercao, "\0");
 	char cToStr[2];
-	cToStr[1] = '\0';
-	int size  = 0;
+	cToStr[1] = '\0'; //Usa-se string para poder user função concat
+	int size  = 0; //Tamanho das strings dentro do objeto Data
+	
 	//4 pois são as propriedades
 	for(int property = 0; property < 4; property++){
 		switch(property){
-			//
 			case 0:
 				size = 14;
 				for(int j = 0; j < size; j++)
@@ -141,7 +150,7 @@ void carregarArquivos(){
 
     FILE *fileB, *fileA;
     int numReg, i=0, tam = 3;
-    //struct dados *vet;
+    //struct dados *listaRegistros;
 
     //carrega o conteudo de biblioteca.bin
     fileB = fopen("biblioteca.bin", "rb");
@@ -162,18 +171,18 @@ void carregarArquivos(){
 
     fseek(fileB, 0, SEEK_END);
     long tamanhoArq = ftell(fileB); //calculo o numero de bytes do arquivo
-    int numRegs = tamanhoArq / 119;  //calculo o numero de registros no meu vetor
-	int tamanhoVet = numRegs * sizeof(struct dados); //Calcula tamanho do meu ponteiro
+    int numRegs = tamanhoArq / 119;  //calculo o numero de registros no meu listaRegistrosor
+	int tamanholistaRegistros = numRegs * sizeof(dados); //Calcula tamanho do meu ponteiro
 	
-    vet = (struct dados*)malloc(tamanhoVet);
+    listaRegistros = (dados*)malloc(tamanholistaRegistros);
     fseek(fileB, 0, 0);
-    fread(vet, tamanhoVet ,1,fileB);
+    fread(listaRegistros, tamanholistaRegistros ,1,fileB);
 
     while(i < numRegs){
-            printf("ISBN: %s\n", vet[i].ISBN);
-            printf("Titulo: %s\n", vet[i].tituloLivro);
-            printf("Autor: %s\n", vet[i].autorLivro);
-            printf("Ano: %s\n\n", vet[i].anoLivro);
+            printf("ISBN: %s\n", listaRegistros[i].ISBN);
+            printf("Titulo: %s\n", listaRegistros[i].tituloLivro);
+            printf("Autor: %s\n", listaRegistros[i].autorLivro);
+            printf("Ano: %s\n\n", listaRegistros[i].anoLivro);
             i++;
 	}
 }
