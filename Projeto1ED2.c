@@ -20,6 +20,7 @@ void atualizaHeader();
 void atualizaIncluidos();
 int getHeader();
 int getIncluidos();
+void achaRegistro();
 //void dump();
 
 
@@ -29,15 +30,17 @@ typedef struct{
 }dados;
 
 typedef struct{
+	char *ISBN, *tituloLivro, *autorLivro, *anoLivro;
+}livroD;
+
+typedef struct{
 	dados *registros;
 	int count;
 }listaRegistros;
 listaRegistros lista;
 
 //struct contendo os arquivos para serem removidos
-struct data{
-    char ISBN[13];
-};
+struct data{ char ISBN[13]; };
 
 char *retornaString(dados data);
 int header = 1;
@@ -54,6 +57,7 @@ int main(void){
     if((fileA = fopen("dados.bin", "rb+")) == NULL)
         fileA = criaArquivo("dados.bin");
 
+	achaRegistro("", fileA);
     //MENU DE ESCOLHAS
     do{
         system("cls");
@@ -91,18 +95,13 @@ void inserir(FILE *fp){
 	if(header == -1){
 		fseek(fp, 0, SEEK_END);
 		if(lista.registros == NULL || lista.count == 0)
-			//Popula lista de Registros
 			carregarArquivos();
-		
 		
 		//Posição da lista deve ser buscada no arquivo info.dat
 		int pos = getIncluidos();
 		if(pos == lista.count)
-		{
 			printf("\nTodos os registros já foram adicionados");
-			_getch();
-			
-		}else{
+		else{
 			printf("\nInserindo registro...");
 			char *stringInsercao = retornaString(lista.registros[pos]);
 			fprintf(fp, stringInsercao);
@@ -199,7 +198,6 @@ char *retornaString(dados data){
 						formataString(cToStr,  data.tituloLivro[j], stringInsercao, &j, size, 0);
 					else
 						formataString(cToStr,  data.autorLivro[j], stringInsercao, &j, size, 0);
-				
 				break;
 			case 3:
 				size = 5;
@@ -255,6 +253,75 @@ void atualizaHeader(FILE *fp, int novoHeader){
 		fwrite(&novoHeader, sizeof(int),1,fp);
 	}
 }
+
+int getRegTam(FILE *fp){
+	char aux[3];
+	aux[2] = '\0';
+	aux[0] = fgetc(fp);
+	aux[1] = fgetc(fp);
+	return atoi(aux);
+}
+
+livroD* getLivroD(FILE *fp){
+	livroD *livro = (livroD *)malloc(sizeof(livroD));
+	int tam = getRegTam(fp);
+	char cToStr[2];
+	cToStr[0] = '\0';
+	cToStr[1] = '\0';
+	char *wordBuffer = malloc(sizeof(tam) + 1);
+	int prop = 0;
+	
+	for(int i = 0; i < tam && cToStr[0] != '$'; i++){
+		cToStr[0] = fgetc(fp);
+		if(cToStr[0] == '#' || i == tam-1){
+			switch(prop){
+				case 0:
+					livro->ISBN = malloc(strlen(wordBuffer) + 1);
+					strcpy(livro->ISBN, wordBuffer);
+					break;		
+				case 1:
+					livro->tituloLivro = malloc(strlen(wordBuffer) + 1);
+					strcpy(livro->tituloLivro, wordBuffer);
+					break;
+				case 2:
+					livro->autorLivro = malloc(strlen(wordBuffer) + 1);
+					strcpy(livro->autorLivro, wordBuffer);
+					break;
+				case 3:
+					strcat(wordBuffer, cToStr);
+					livro->anoLivro = malloc(strlen(wordBuffer) + 1);
+					strcpy(livro->anoLivro, wordBuffer);
+					break;
+			}
+			prop++;
+			strcpy(wordBuffer,"");
+		}
+		else
+			strcat(wordBuffer, cToStr);
+	}
+	return livro;
+}
+
+void achaRegistro(char ISBN[14], FILE *fp){
+	if(fp == NULL){
+		printf("\nArquivo está vazio!");
+		return;
+	}
+	int size = 0;
+	fseek(fp, 0, SEEK_END);
+	size = ftell(fp);
+	rewind(fp);
+	fseek(fp, sizeof(int), SEEK_SET); // PULA O HEADER
+	
+	while(1){
+		if(ftell(fp) == size)//Fim de arquivo
+			break;
+		livroD *aux = getLivroD(fp);
+
+	};
+	_getch();
+}
+
 
 void carregarArquivos(){
     FILE *fileB;
