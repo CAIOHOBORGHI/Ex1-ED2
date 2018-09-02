@@ -263,6 +263,10 @@ int getRegTam(FILE *fp){
 }
 
 livroD* getLivroD(FILE *fp){
+	if(ftell(fp) == 0){
+		//pula header
+		fseek(fp, sizeof(int), SEEK_CURR);
+	}
 	livroD *livro = (livroD *)malloc(sizeof(livroD));
 	int tam = getRegTam(fp);
 	char cToStr[2];
@@ -311,7 +315,6 @@ void achaRegistro(char ISBN[14], FILE *fp){
 	fseek(fp, 0, SEEK_END);
 	size = ftell(fp);
 	rewind(fp);
-	fseek(fp, sizeof(int), SEEK_SET); // PULA O HEADER
 	
 	while(1){
 		if(ftell(fp) == size)//Fim de arquivo
