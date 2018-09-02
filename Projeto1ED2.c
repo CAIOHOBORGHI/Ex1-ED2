@@ -20,6 +20,7 @@ void atualizaHeader();
 void atualizaInfos();
 void getInfos();
 int getHeader();
+int getRegTam(FILE *fp);
 int excluiRegistro(char ISBN[14], FILE *fp);
 void remover(FILE *fp);
 //void dump();
@@ -66,6 +67,7 @@ int main(void){
         fileA = criaArquivo("dados.bin");
 	
 	header = getHeader(fileA);
+	
     //MENU DE ESCOLHAS
     do{
         system("cls");
@@ -81,7 +83,6 @@ int main(void){
         switch(opc){
 	        case 1: 
 				inserir(fileA);
-				_getch();
 				break;
 	        case 2: 
 				remover(fileA); 
@@ -124,6 +125,15 @@ void remover(FILE *fp){
 	fclose(rem);
 }
 
+char *substring(char *str, int beg){
+	char *novo = malloc((sizeof(char) * strlen(str)) + 2);
+	int i = beg;
+	for(; i < strlen(str); i++){
+		novo[i - beg] = str[i];
+	}
+	return novo;
+}
+
 void inserir(FILE *fp){
 	header = getHeader(fp);
 	
@@ -136,22 +146,53 @@ void inserir(FILE *fp){
 	if(pos == lista.count)
 		printf("\nTodos os registros já foram adicionados");
 	else{
-		if(header == -1){
-			fseek(fp, 0, SEEK_END);
-			//Posição da lista deve ser buscada no arquivo info.dat
-			printf("\nInserindo registro...");
-			char *stringInsercao = retornaString(lista.registros[pos]);
-			fprintf(fp, stringInsercao);
-			infos.incluidos++;
-			atualizaInfos();
-			printf("\nRegistro incluído com sucesso!");
-		}else{
-			//Header é o offset para primeiro arquivo excluído
-			//TODO: Implementar função first-fit 
-			fseek(fp, 0, SEEK_SET);
-			fseek(fp, header, SEEK_SET);
+		char *stringInsercao = retornaString(lista.registros[pos]);
+		
+		//Header é o offset para primeiro arquivo excluído
+		int offset = header;
+		int anterior = -1;
+		char *novoReg = strcat(substring(stringInsercao, 2), "$");
+		int tamNovo = strlen(novoReg);
+		while(offset != -1){
+			fseek(fp, offset, SEEK_SET);
+			
+			//Le o tamanho do registro excluído
+			char *buffer = malloc(sizeof(char) * 2);
+			fread(buffer, 2, 1, fp);
+			int tamExcluido = atoi(buffer);
+			fseek(fp, 1, SEEK_CUR);//PULA ASTERISCO
+			
+			//Verifica se novoRegistro cabe no registro excluído
+			if(tamExcluido >= tamNovo){
+				int prox;
+				fread(&prox, sizeof(int), 1, fp);
+				if(anterior != -1){
+					fseek(fp, anterior + 3, SEEK_SET);
+					fwrite(&prox, sizeof(int), 1, fp);
+				}else
+					atualizaHeader(fp, prox);
+				fseek(fp, offset + 2, SEEK_SET);
+				fprintf(fp, "%s", novoReg);
+				break;
+			}
+			else{
+				anterior = offset;
+				fread(&offset, sizeof(int), 1, fp);
+			}
 		}
+		
+		if(offset == -1){
+			//write at end of file
+			fseek(fp, 0, SEEK_END);
+			fprintf(fp, stringInsercao);
+		}
+	
+		infos.incluidos++;
+		atualizaInfos();
+		printf("\nRegistro incluído com sucesso!");
+		_getch();
 	}
+
 }
 
 void atualizaInfos(){
@@ -288,10 +329,9 @@ void atualizaHeader(FILE *fp, int novoHeader){
 		fread(&header, sizeof(int), 1, fp);
 		fseek(fp, 0, SEEK_SET);
 		fwrite(&novoHeader, sizeof(int),1,fp);		
-	}else{
-//		printf("\nDefinindo header....");
+	}else
 		fwrite(&novoHeader, sizeof(int),1,fp);
-	}
+
 }
 
 int getRegTam(FILE *fp){
@@ -354,7 +394,7 @@ livroD* getLivroD(FILE *fp){
 	
 	//Ignora caracteres dentro do registro após sinal de exclusão
 	if(cToStr[0] == '$')
-		while(i <= tam){
+		while(i < tam){
 			fgetc(fp);
 			i++;
 		}
@@ -390,7 +430,8 @@ int excluiRegistro(char ISBN[14], FILE *fp){
 			fseek(fp, -(aux->offset), SEEK_CUR);
 			int novoHeader = ftell(fp) - 2;
 			header = getHeader(fp);
-			fprintf(fp, "*%d", header);
+			fprintf(fp, "*");
+			fwrite(&header, sizeof(int),1, fp);
 			atualizaHeader(fp, novoHeader);
 			printf("\nRegistro excluído com sucesso!");
 			return 1;
