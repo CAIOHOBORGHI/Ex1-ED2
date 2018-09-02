@@ -17,10 +17,11 @@ void inserir();
 void carregarArquivos();
 FILE *criaArquivo();
 void atualizaHeader();
-void atualizaIncluidos();
+void atualizaInfos();
+void getInfos();
 int getHeader();
-int getIncluidos();
-void achaRegistro();
+int excluiRegistro(char ISBN[14], FILE *fp);
+void remover(FILE *fp);
 //void dump();
 
 
@@ -33,6 +34,12 @@ typedef struct{
 	char *ISBN, *tituloLivro, *autorLivro, *anoLivro;
 	int offset;
 }livroD;
+
+typedef struct{
+	int incluidos, excluidos;
+}info;
+
+info infos;
 
 typedef struct{
 	dados *registros;
@@ -55,10 +62,10 @@ int main(void){
     lista.count = 0;
 
     //Verifica se o arquivo já existe, caso contrario, cria-o.
-    if((fileA = fopen("dados.bin", "rb+")) == NULL)
+    if((fileA = fopen("dados.bin", "r+b")) == NULL)
         fileA = criaArquivo("dados.bin");
-
-	achaRegistro("1111111111111", fileA);
+	
+	header = getHeader(fileA);
     //MENU DE ESCOLHAS
     do{
         system("cls");
@@ -76,7 +83,9 @@ int main(void){
 				inserir(fileA);
 				_getch();
 				break;
-	        //case 2: remover(); break;
+	        case 2: 
+				remover(fileA); 
+				break;
 	        //case 3: compactar(); break;
 	        case 4: 
 				carregarArquivos();	
@@ -85,45 +94,75 @@ int main(void){
 	        //case 6: exit(0); break;
 	        //default: printf("Opcao invalida!"); system("pause");
         }
-
     }while(opc != 0);
 
     fclose(fileA);
 }
 
+void remover(FILE *fp){
+	getInfos();
+	if(infos.incluidos == 0){
+		printf("Insira algum elemento para poder excluir.");
+		_getch();
+		return;
+	}
+	int excluidos = infos.excluidos;
+	FILE *rem = fopen("remove.bin", "rb");
+	if(rem == NULL)
+	{
+		printf("Erro ao abrir arquivo");
+		exit(0);
+	}
+	char ISBN[13];
+	fseek(rem, 14 * excluidos, SEEK_SET);
+	fread(&ISBN, 13, 1, rem);
+	if(excluiRegistro(ISBN, fp)){
+		infos.excluidos++;
+		atualizaInfos();
+	}
+	_getch();
+	fclose(rem);
+}
+
 void inserir(FILE *fp){
 	header = getHeader(fp);
-	if(header == -1){
-		fseek(fp, 0, SEEK_END);
-		if(lista.registros == NULL || lista.count == 0)
-			carregarArquivos();
-		
-		//Posição da lista deve ser buscada no arquivo info.dat
-		int pos = getIncluidos();
-		if(pos == lista.count)
-			printf("\nTodos os registros já foram adicionados");
-		else{
+	
+	if(lista.registros == NULL || lista.count == 0)
+		carregarArquivos();
+
+	getInfos();
+
+	int pos = infos.incluidos;
+	if(pos == lista.count)
+		printf("\nTodos os registros já foram adicionados");
+	else{
+		if(header == -1){
+			fseek(fp, 0, SEEK_END);
+			//Posição da lista deve ser buscada no arquivo info.dat
 			printf("\nInserindo registro...");
 			char *stringInsercao = retornaString(lista.registros[pos]);
 			fprintf(fp, stringInsercao);
-			atualizaIncluidos(++pos);
+			infos.incluidos++;
+			atualizaInfos();
 			printf("\nRegistro incluído com sucesso!");
+		}else{
+			//Header é o offset para primeiro arquivo excluído
+			//TODO: Implementar função first-fit 
+			fseek(fp, 0, SEEK_SET);
+			fseek(fp, header, SEEK_SET);
 		}
-	}else{
-		//Header é o offset para primeiro arquivo excluído
-		fseek(fp, 0, SEEK_SET);
-		fseek(fp, header, SEEK_SET);
 	}
 }
 
-void atualizaIncluidos(int novoIncluidos){
+void atualizaInfos(){
 	FILE *fp = fopen("info.dat", "rb+");
 	if(fp == NULL)
 	{
 		printf("Erro ao atualizar arquivo de informações");
 		exit(0);
 	}
-	fprintf(fp, "%d", novoIncluidos);
+	
+	fprintf(fp, "%d %d", infos.incluidos, infos.excluidos);
 	fclose(fp);
 }
 
@@ -138,19 +177,17 @@ FILE *criaInfo(){
 	return info;
 }
 
-int getIncluidos(){
-	int incluidos = 0;
+void getInfos(){
+	int incluidos, excluidos;
 	FILE *fp = fopen("info.dat", "rb+");
-	//Arquivo info.dat ainda não existe
-	//Info.dat -> 2 ints, o primeiro para incluídos e o segundo para excluídos
 	if(fp == NULL){
 		fp = criaInfo();
 	}else{
-		fseek(fp, 0, SEEK_SET);
-		fscanf(fp, "%d", &incluidos);
+		fscanf(fp, "%d%d",&incluidos, &excluidos);
+		infos.incluidos = incluidos;
+		infos.excluidos = excluidos;
 	}
 	fclose(fp);
-	return incluidos;
 }
 
 int getHeader(FILE *fp){
@@ -159,9 +196,12 @@ int getHeader(FILE *fp){
 		_getch();
 		exit(0);
 	}
+	int curr = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 	int header;
 	fread(&header, sizeof(int), 1,fp);
+	rewind(fp);
+	fseek(fp, curr, SEEK_SET);
 	return header;
 }
 
@@ -245,12 +285,11 @@ void atualizaHeader(FILE *fp, int novoHeader){
     fseek(fp, 0, SEEK_SET);//Volta ao início do arquivo
     int header = 0;
 	if(!empty){
-		printf("\nArquivo não vazio...");
 		fread(&header, sizeof(int), 1, fp);
 		fseek(fp, 0, SEEK_SET);
 		fwrite(&novoHeader, sizeof(int),1,fp);		
 	}else{
-		printf("\nDefinindo header....");
+//		printf("\nDefinindo header....");
 		fwrite(&novoHeader, sizeof(int),1,fp);
 	}
 }
@@ -264,11 +303,12 @@ int getRegTam(FILE *fp){
 }
 
 livroD* getLivroD(FILE *fp){
-	if(ftell(fp) == 0){
+	if(ftell(fp) == 0)
 		//pula header
 		fseek(fp, sizeof(int), SEEK_SET);
-	}
+	
 	livroD *livro = (livroD *)malloc(sizeof(livroD));
+	
 	int tam = getRegTam(fp);
 	livro->offset = tam;
 	char cToStr[2];
@@ -279,6 +319,12 @@ livroD* getLivroD(FILE *fp){
 	int i = 0;
 	for(; i < tam && cToStr[0] != '$'; i++){
 		cToStr[0] = fgetc(fp);
+		if(i == 0 && cToStr[0] =='*'){
+			fseek(fp, tam - 1, SEEK_CUR);
+			free(livro);
+			free(wordBuffer);
+			return NULL;
+		}
 		if(cToStr[0] == '#' || i == tam-1){
 			switch(prop){
 				case 0:
@@ -311,14 +357,15 @@ livroD* getLivroD(FILE *fp){
 		while(i <= tam){
 			fgetc(fp);
 			i++;
-		}		
+		}
+	free(wordBuffer);
 	return livro;
 }
 
-void achaRegistro(char ISBN[14], FILE *fp){
+int excluiRegistro(char ISBN[14], FILE *fp){
 	if(fp == NULL){
 		printf("\nArquivo está vazio!");
-		return;
+		return 0;
 	}
 	int size = 0;
 	fseek(fp, 0, SEEK_END);
@@ -327,14 +374,35 @@ void achaRegistro(char ISBN[14], FILE *fp){
 	
 	while(1){
 		livroD *aux = getLivroD(fp);
+		if(aux == NULL)
+		{
+			if(ftell(fp) == size || feof(fp)){
+				printf("\nRegistro não encontrado!");
+				return 0;
+			}
+				
+			continue;
+		}
+		
 		if(strcmp(ISBN, aux->ISBN) == 0)
 		{
-			printf("ACHOU, TAM: %d", aux->offset);
+			printf("\nExcluindo registro...");
+			fseek(fp, -(aux->offset), SEEK_CUR);
+			int novoHeader = ftell(fp) - 2;
+			header = getHeader(fp);
+			fprintf(fp, "*%d", header);
+			atualizaHeader(fp, novoHeader);
+			printf("\nRegistro excluído com sucesso!");
+			return 1;
+		}
+		
+		if(ftell(fp) == size || feof(fp)){
+			printf("\nRegistro não encontrado!");
+			rewind(fp);
+			return 0;
 		}
 	};
-	_getch();
 }
-
 
 void carregarArquivos(){
     FILE *fileB;
