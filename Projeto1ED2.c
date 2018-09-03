@@ -470,16 +470,29 @@ void carregarArquivos(){
 }
 
 void compactar(FILE *fp){
-		
 	livroD *livro;  
 	FILE *temp;
 	char *old_filename ="dados.bin" , *new_filename = "temporario.bin";
-	
-	
 	temp = criaArquivo("temporario.bin");
 	
     livro = getLivroD(fp);
-
+    
+    char stringInsercao[150];
+    char t[12];
+	sprintf(t, "%d", livro->offset);
+	strcat(stringInsercao, t);
+	strcat(stringInsercao, "#");
+    strcat(stringInsercao, livro->ISBN);
+    strcat(stringInsercao, "#");
+    strcat(stringInsercao, livro->tituloLivro);
+    strcat(stringInsercao, "#");
+    strcat(stringInsercao, livro->autorLivro);
+    strcat(stringInsercao, "#");
+    strcat(stringInsercao, livro->anoLivro);
+    printf("NOSSA STRING É : %s", stringInsercao);
+    fprintf(temp, "%s", stringInsercao);
+    _getch();
+    
     
     
 	fclose(fp);
